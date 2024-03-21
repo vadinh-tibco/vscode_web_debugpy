@@ -1,3 +1,2 @@
 python -m venv .\env
-.\env\Scripts\activate.bat
-python -m pip install --upgrade debugpy
+.\env\Scripts\python.exe -m pip install --upgrade debugpy
