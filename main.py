@@ -15,16 +15,10 @@ vs_host = '127.0.0.1'
 vs_port = '8000'
 vs_proc = None
 
-
 debug_proc = None
 
 def write_text_file(filepath: str, content: str):
     f = open(filepath, "w")
-    f.write(content)
-    f.close()
-
-def write_bin_file(filepath: str, content: bytes):
-    f = open(filepath, "wb")
     f.write(content)
     f.close()
 
@@ -37,12 +31,12 @@ def start_vsweb():
 def make_url(target_dir: str):
     return f'http://{vs_host}:{vs_port}/?folder=/{target_dir}'
 
-def init_debug(code: bytes):
+def init_debug(code: str):
     dirname = tempfile.mkdtemp(dir=temp_dir)
     print('created temporary directory', dirname)
     main_py = os.path.join(dirname, "main.py")
 
-    write_bin_file(main_py, code)
+    write_text_file(main_py, code)
     os.makedirs(os.path.join(dirname, ".vscode"), exist_ok=True)
     write_text_file(os.path.join(dirname, ".vscode", "launch.json"), json.dumps({
         "configurations": [{
@@ -60,16 +54,22 @@ def init_debug(code: bytes):
 
     return dirname
 
-def start_debug(code: bytes, target_dir: str):
+def start_debug(invisible_code: str, debug_code: str, target_dir: str):
+    _globals = dict()
+    _locals = dict()
+
+    print("Run invisible code")
+    exec(invisible_code, _globals, _locals)
+
     main_py = os.path.join(target_dir, "main.py")
-    compiled_code = compile(code, main_py, "exec")
+    compiled_code = compile(debug_code, main_py, "exec")
     debugpy.listen(debugPort)
 
     # proc = subprocess.Popen(['code', dirname, main_py], shell=True)
 
     print("Waiting for debugger attach")
     debugpy.wait_for_client()
-    exec(compiled_code)
+    exec(compiled_code, _globals, _locals)
 
 
 class MyServer(http.server.SimpleHTTPRequestHandler):
@@ -87,9 +87,14 @@ class MyServer(http.server.SimpleHTTPRequestHandler):
 
         content = self.rfile.read(content_len)
 
-        target_dir = init_debug(content)
+        data = json.loads(content)
 
-        debug_proc = Process(target=start_debug, args=(content, target_dir))
+        invisible_code = data['invisible']
+        debug_code = data['debug']
+
+        target_dir = init_debug(debug_code)
+
+        debug_proc = Process(target=start_debug, args=(invisible_code, debug_code, target_dir))
         debug_proc.start()
 
         print('target_dir =', target_dir)

@@ -12,7 +12,11 @@
 
 <body style="height: 100vh; width: 100vw;">
     <div class="container h-100 d-flex flex-column">
-        <div id="container" class="flex-grow-1 border"></div>
+        <h5>Invisible code</h5>
+        <div id="invisible_code" class="flex-grow-1 border mb-3"></div>
+
+        <h5>Debug code</h5>
+        <div id="debug_code" class="flex-grow-1 border"></div>
         <div class="d-flex mb-3 mt-3 justify-content-end">
             <button class="btn btn-primary" onclick="startDebug()">
                 Start Debug
@@ -24,8 +28,15 @@
     <script>
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.26.1/min/vs' } });
         require(["vs/editor/editor.main"], () => {
-            window.editor = monaco.editor.create(document.getElementById('container'), {
-                value: `print("Hello world!")`,
+            window.invisible_editor = monaco.editor.create(document.getElementById('invisible_code'), {
+                value: `x = 5`,
+                language: 'python',
+                theme: 'vs',
+                minimap: { enabled: false },
+            });
+
+            window.debug_editor = monaco.editor.create(document.getElementById('debug_code'), {
+                value: `print("x =", x)`,
                 language: 'python',
                 theme: 'vs',
                 minimap: { enabled: false },
@@ -33,7 +44,7 @@
         });
 
         function startDebug(){
-            fetch("/", {body: editor.getValue(), method: 'POST'}).then(response =>{
+            fetch("/", {body: JSON.stringify({debug: debug_editor.getValue(), invisible: invisible_editor.getValue()}), method: 'POST'}).then(response =>{
                 response.text().then(txt=>{
                     window.open(txt);
                 })
